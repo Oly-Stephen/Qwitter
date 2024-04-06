@@ -1,9 +1,12 @@
 package com.twitter.twitterbackend.service;
 
+import com.twitter.twitterbackend.exception.EmailAlreadyTakenException;
 import com.twitter.twitterbackend.models.ApplicationUser;
+import com.twitter.twitterbackend.models.RegistrationObject;
 import com.twitter.twitterbackend.models.Role;
 import com.twitter.twitterbackend.repositories.RoleRepository;
 import com.twitter.twitterbackend.repositories.UserRepository;
+import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
@@ -19,11 +22,44 @@ public class UserService {
         this.roleRepository = roleRepository;
     }
 
-    public ApplicationUser registerUser(ApplicationUser user) {
+    public ApplicationUser registerUser(RegistrationObject ro) {
+        ApplicationUser user = new ApplicationUser();
+
+        user.setFirstName(ro.getFirstName());
+        user.setLastName(ro.getLastName());
+        user.setEmail(ro.getEmail());
+        user.setDateOfBirth(ro.getDob());
+
+        String name = user.getFirstName() + user.getLastName();
+
+        boolean nameTaken = true;
+
+        String tempName = "";
+
+        while (nameTaken) {
+            tempName = generateUsername(name);
+
+            if(userRepository.findByUsername(tempName).isEmpty()) {
+                nameTaken = false;
+            }
+        }
+
+        user.setUsername(tempName);
+
+
         Set<Role> roles = user.getAuthorities();
         roles.add(roleRepository.findByAuthority("USER").get());
         user.setAuthorities(roles);
 
-        return userRepository.save(user);
+        try {
+            return userRepository.save(user);
+        } catch (Exception e) {
+            throw new EmailAlreadyTakenException();
+        }
+    }
+
+    private String generateUsername(String name) {
+        long generatedNumber = (long) Math.floor(Math.random() * 1_000_000_000);
+        return name+generatedNumber;
     }
 }
