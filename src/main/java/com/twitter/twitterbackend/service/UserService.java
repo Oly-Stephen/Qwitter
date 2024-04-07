@@ -1,6 +1,7 @@
 package com.twitter.twitterbackend.service;
 
 import com.twitter.twitterbackend.exception.EmailAlreadyTakenException;
+import com.twitter.twitterbackend.exception.UserDoesNotExistException;
 import com.twitter.twitterbackend.models.ApplicationUser;
 import com.twitter.twitterbackend.models.RegistrationObject;
 import com.twitter.twitterbackend.models.Role;
@@ -20,6 +21,18 @@ public class UserService {
     public UserService(UserRepository userRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+    }
+
+    public ApplicationUser getUserByUsername(String username) {
+        return userRepository.findByUsername(username).orElseThrow(UserDoesNotExistException::new);
+    }
+
+    public ApplicationUser updateUser(ApplicationUser user) {
+        try {
+            return userRepository.save(user);
+        }catch (Exception e) {
+            throw new EmailAlreadyTakenException();
+        }
     }
 
     public ApplicationUser registerUser(RegistrationObject ro) {
@@ -58,8 +71,21 @@ public class UserService {
         }
     }
 
+    public void generateEmailVerification(String username) {
+
+        ApplicationUser user = userRepository.findByUsername(username).orElseThrow(UserDoesNotExistException::new);
+
+        user.setVerification(generateVerificationNumber());
+
+        userRepository.save(user);
+    }
+
     private String generateUsername(String name) {
         long generatedNumber = (long) Math.floor(Math.random() * 1_000_000_000);
         return name+generatedNumber;
+    }
+
+    private Long generateVerificationNumber() {
+        return (long) Math.floor(Math.random() * 100_000_000);
     }
 }
